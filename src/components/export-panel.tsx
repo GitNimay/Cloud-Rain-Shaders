@@ -1,6 +1,22 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { highlight } from 'sugar-high'
-import { MODULE_URL, SITE, download, embedCode, htmlFile, jsCode, reactCode, recordGif, recordVideo, videoMime } from '../export'
+import {
+  GIF_FPS,
+  GIF_SIZE,
+  MODULE_URL,
+  SITE,
+  VIDEO_FPS,
+  VIDEO_SIZES,
+  canRecordVideo,
+  download,
+  embedCode,
+  htmlFile,
+  jsCode,
+  reactCode,
+  renderGif,
+  renderVideo,
+  type VideoSize,
+} from '../export'
 import type { Params } from '../params'
 import { SegmentedField } from './controls'
 import { SheenPillButton } from './sheen-pill-button'
@@ -13,17 +29,23 @@ const FORMATS = [
 ] as const
 type Format = (typeof FORMATS)[number]['value']
 type Media = 'video' | 'gif'
-
-const MEDIA = {
-  video: { label: 'Video', seconds: 6, meta: videoMime?.startsWith('video/mp4') ? 'MP4' : 'WebM' },
-  gif: { label: 'GIF', seconds: 4, meta: '360px' },
-} as const
+const SIZES = [...VIDEO_SIZES].reverse() // smallest first, like a quality menu
+const LENGTHS = [
+  { value: '5', label: '5 s' },
+  { value: '10', label: '10 s' },
+  { value: '20', label: '20 s' },
+] as const
+type Length = (typeof LENGTHS)[number]['value']
 
 // Ways to take the current look into another project. All of them carry the current settings.
 export function ExportPanel({ params, getCanvas }: { params: Params; getCanvas: () => HTMLCanvasElement | null }) {
   const [format, setFormat] = useState<Format>('embed')
-  const [rec, setRec] = useState<{ kind: Media; start: number } | null>(null)
-  const [now, setNow] = useState(0)
+  const [size, setSize] = useState<VideoSize>('4k')
+  const [length, setLength] = useState<Length>('5')
+  // The render in progress: which kind, how far along (0 to 1), and how to cancel it.
+  const [rec, setRec] = useState<{ kind: Media; done: number; abort: AbortController } | null>(null)
+  // What the last finished render produced, shown on its button for a moment, e.g. "1440p".
+  const [made, setMade] = useState('')
   // Feedback for the last action, e.g. "copy:done" or "gif:failed"; cleared shortly after.
   const [status, setStatus] = useState('')
   const [moduleKB, setModuleKB] = useState<number | null>(null)
@@ -39,26 +61,37 @@ export function ExportPanel({ params, getCanvas }: { params: Params; getCanvas: 
     const t = setTimeout(() => setStatus(''), 1800)
     return () => clearTimeout(t)
   }, [status])
-  useEffect(() => {
-    if (!rec) return
-    const t = setInterval(() => setNow(performance.now()), 200)
-    return () => clearInterval(t)
-  }, [rec])
+  // Leaving the page mid-render stops it.
+  const running = useRef<AbortController | null>(null)
+  useEffect(() => () => running.current?.abort(), [])
 
+  // Renders the settings as they are when the button is pressed, in a separate off-screen
+  // shader, so the preview keeps running and can be adjusted meanwhile without affecting the file.
   const record = async (kind: Media) => {
-    const canvas = getCanvas()
-    if (!canvas || rec) return
-    const start = performance.now()
-    setNow(start)
-    setRec({ kind, start })
+    if (rec) return void (rec.kind === kind && rec.abort.abort()) // pressing a busy button cancels it
+    const abort = new AbortController()
+    running.current = abort
+    setRec({ kind, done: 0, abort })
+    const job = {
+      seconds: Number(length),
+      // The preview's width in CSS px, so the file has the same number of cells across as the screen.
+      previewWidth: getCanvas()?.clientWidth || 1280,
+      signal: abort.signal,
+      onProgress: (done: number) => setRec((r) => r && { ...r, done }),
+    }
     try {
       if (kind === 'video') {
-        const { blob, ext } = await recordVideo(canvas, MEDIA.video.seconds)
-        download(`cloud-rain.${ext}`, blob)
-      } else download('cloud-rain.gif', await recordGif(canvas, MEDIA.gif.seconds))
+        const { width, height } = VIDEO_SIZES.find((s) => s.value === size)!
+        const video = await renderVideo(params, { ...job, width, height })
+        download(`cloud-rain-${video.size.value}.${video.ext}`, video.blob)
+        setMade(video.size.label)
+      } else {
+        download('cloud-rain.gif', await renderGif(params, { ...job, ...GIF_SIZE }))
+        setMade('')
+      }
       setStatus(`${kind}:done`)
     } catch {
-      setStatus(`${kind}:failed`)
+      setStatus(abort.signal.aborted ? '' : `${kind}:failed`)
     } finally {
       setRec(null)
     }
@@ -83,32 +116,27 @@ export function ExportPanel({ params, getCanvas }: { params: Params; getCanvas: 
 
   return (
     <>
-      <div className="flex flex-col gap-1.5">
-        <span className="text-body-mini-regular text-text-secondary">Media</span>
-        <div className="grid grid-cols-2 gap-1.5">
-          {(Object.keys(MEDIA) as Media[])
-            .filter((k) => k !== 'video' || videoMime)
-            .map((kind) => (
-              <MediaTile
-                key={kind}
-                {...MEDIA[kind]}
-                state={
-                  rec?.kind === kind
-                    ? (now - rec.start) / 1000 < MEDIA[kind].seconds
-                      ? 'recording'
-                      : 'encoding'
-                    : status === `${kind}:done`
-                      ? 'done'
-                      : status === `${kind}:failed`
-                        ? 'failed'
-                        : 'idle'
-                }
-                left={rec?.kind === kind ? Math.max(1, Math.ceil(MEDIA[kind].seconds - (now - rec.start) / 1000)) : 0}
-                disabled={rec !== null && rec.kind !== kind}
-                onClick={() => record(kind)}
-              />
-            ))}
-        </div>
+      {canRecordVideo && <SegmentedField label="Video size" value={size} options={SIZES} onChange={setSize} />}
+      <SegmentedField label="Length" value={length} options={LENGTHS} onChange={setLength} />
+      <div className="grid grid-cols-2 gap-1.5">
+        {canRecordVideo && (
+          <MediaTile
+            label="Video"
+            detail={`${length} s · ${SIZES.find((s) => s.value === size)!.label} · ${VIDEO_FPS} fps`}
+            done={rec?.kind === 'video' ? rec.done : null}
+            result={status === 'video:done' ? `Saved ${made}` : status === 'video:failed' ? 'Retry' : ''}
+            disabled={rec?.kind === 'gif'}
+            onClick={() => record('video')}
+          />
+        )}
+        <MediaTile
+          label="GIF"
+          detail={`${length} s · ${GIF_SIZE.width} × ${GIF_SIZE.height} · ${GIF_FPS} fps`}
+          done={rec?.kind === 'gif' ? rec.done : null}
+          result={status === 'gif:done' ? 'Saved' : status === 'gif:failed' ? 'Retry' : ''}
+          disabled={rec?.kind === 'video'}
+          onClick={() => record('gif')}
+        />
       </div>
 
       <SegmentedField label="Code" value={format} options={FORMATS} onChange={setFormat} />
@@ -121,46 +149,40 @@ export function ExportPanel({ params, getCanvas }: { params: Params; getCanvas: 
       {(format === 'react' || format === 'js') && <FileRow name="cloud-rain.js" kb={moduleKB} href={MODULE_URL} />}
 
       <span role="status" className="sr-only">
-        {rec ? 'Recording' : status.endsWith(':done') ? 'Done' : status.endsWith(':failed') ? 'Failed' : ''}
+        {rec ? 'Rendering' : status.endsWith(':done') ? 'Done' : status.endsWith(':failed') ? 'Failed' : ''}
       </span>
     </>
   )
 }
 
-// A plain record button: a text label, swapping to a pulsing REC dot and countdown while
-// capturing, then "Saved" once the file is downloaded.
+// A plain render button: a text label, swapping to the progress while the file is being made
+// (pressing it then cancels), then "Saved" once the file is downloaded.
 function MediaTile(props: {
   label: string
-  seconds: number
-  meta: string
-  state: 'idle' | 'recording' | 'encoding' | 'done' | 'failed'
-  left: number
+  detail: string
+  done: number | null // progress 0 to 1 while rendering, otherwise null
+  result: string
   disabled: boolean
   onClick: () => void
 }) {
-  const busy = props.state === 'recording' || props.state === 'encoding'
+  const busy = props.done !== null
   return (
     <SheenPillButton
       onClick={props.onClick}
-      disabled={props.disabled || busy}
+      disabled={props.disabled}
       aria-busy={busy || undefined}
-      aria-label={`Record ${props.seconds} second ${props.label} (${props.meta})`}
-      title={`${props.seconds}s · ${props.meta}`}
+      aria-label={busy ? `Cancel ${props.label}` : `Render ${props.label} (${props.detail})`}
+      title={busy ? 'Cancel' : props.detail}
       className="w-full pointer-coarse:!h-10"
     >
-      {props.state === 'recording' ? (
+      {busy ? (
         <>
           <span className="size-1.5 animate-pulse rounded-full bg-[#cf222e]" />
-          <span className="tabular-nums">Rec {props.left}s</span>
+          {/* 100% is reached before the file is finished being written */}
+          <span className="tabular-nums">{props.done! < 1 ? `${Math.floor(props.done! * 100)}% · Cancel` : 'Saving…'}</span>
         </>
-      ) : props.state === 'encoding' ? (
-        'Encoding…'
-      ) : props.state === 'done' ? (
-        'Saved'
-      ) : props.state === 'failed' ? (
-        'Retry'
       ) : (
-        props.label
+        props.result || props.label
       )}
     </SheenPillButton>
   )
