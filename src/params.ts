@@ -1,9 +1,13 @@
 import { z } from 'zod'
 
+// Phones (narrower than the two-column layout) get a finer default grid: on a ~350px-wide
+// preview, 6px cells leave the clouds too coarse to read. Decided once, when the page loads.
+const PHONE = typeof matchMedia !== 'undefined' && matchMedia('(max-width: 767.98px)').matches
+
 // The six parameters. Ranges must stay inside the limits the shader itself enforces
-// (LIMITS in public/ascii-shedders/cloud-rain.html); it clamps anything outside them.
+// (LIMITS in public/ascii-shedders/cloud-rain.js); it clamps anything outside them.
 export const SLIDERS = [
-  { key: 'cell', label: 'Cell size', min: 4, max: 16, step: 1, fallback: 6, format: (v: number) => `${v} px` },
+  { key: 'cell', label: 'Cell size', min: 4, max: 16, step: 1, fallback: PHONE ? 4 : 6, format: (v: number) => `${v} px` },
   { key: 'speed', label: 'Rain speed', min: 1, max: 30, step: 1, fallback: 6, format: (v: number) => `${v} cells/s` },
   { key: 'density', label: 'Rain density', min: 0, max: 1, step: 0.05, fallback: 0.8, format: (v: number) => `${Math.round(v * 100)}%` },
   { key: 'trail', label: 'Trail length', min: 2, max: 40, step: 1, fallback: 18, format: (v: number) => `${v} cells` },
@@ -34,11 +38,17 @@ export type Effect = (typeof EFFECTS)[number]['value']
 export type SliderKey = (typeof SLIDERS)[number]['key']
 export type Params = Record<SliderKey, number> & { glyphs: GlyphSet; effect: Effect }
 
+// This device's defaults: what Reset returns to, and what the URL leaves out.
 export const DEFAULTS: Params = {
   ...(Object.fromEntries(SLIDERS.map((s) => [s.key, s.fallback])) as Record<SliderKey, number>),
   glyphs: 'digits',
   effect: 'original',
 }
+
+// The shader's own defaults (LIMITS in cloud-rain.js). Exported code is compared against these,
+// not DEFAULTS, so a phone's 4px cell is still written into an embed (which would otherwise
+// fall back to the shader's 6px).
+export const SHADER_DEFAULTS: Params = { ...DEFAULTS, cell: 6 }
 
 // A hand-edited or stale URL falls back to the default for that field instead of erroring.
 const slider = (key: SliderKey) => {
