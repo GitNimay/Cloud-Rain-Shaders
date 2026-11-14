@@ -11,45 +11,128 @@
   --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --color-bg-canvas: #ecebe8; /* page background, set by the brief rather than Palermo */
+  --color-line: #dad8d3; /* hairline dividers on the canvas colour (Palermo's #eeeeee vanishes on it) */
   --color-bg-primary: #ffffff;
-  --color-bg-tertiary: #f5f5f5;
 
   --color-fill-primary: #18181a;
+  --color-fill-secondary: #969696;
   --color-fill-tertiary: #d4d4d8;
-  --color-fill-quaternary: #e8e8e8;
-  --color-fill-inverse: #ffffff;
   --color-fill-blue: oklch(62.3% 0.214 259.815);
 
   --color-control-bg: #ffffff;
-  --color-control-hover: #f5f5f5;
 
   --color-text-primary: #18181a;
   --color-text-secondary: #787878;
   --color-text-tertiary: #969696;
 
-  --color-shadow-stroke: #ebebeb;
+  --color-shadow-stroke: #e2e1dd;
   --color-shadow-2: rgba(0, 0, 0, 0.05);
 
   --shadow-low: 0 0 0 1px var(--color-shadow-stroke), 0 1px 2px var(--color-shadow-2);
   --shadow-low-hover: 0 0 0 1px var(--color-fill-tertiary), 0 1px 2px var(--color-shadow-2);
-  --shadow-medium: 0 0 0 1px var(--color-shadow-stroke), 0 2px 6px rgba(0, 0, 0, 0.08);
-  --shadow-focus: 0 0 0 2px var(--color-bg-canvas), 0 0 0 4px var(--color-fill-blue);
-  --shadow-selected: 0 0 0 2px var(--color-bg-canvas), 0 0 0 4px var(--color-fill-primary);
+  --shadow-focus: 0 0 0 1px var(--color-bg-canvas), 0 0 0 3px var(--color-fill-blue);
+  --shadow-selected: 0 0 0 1.5px var(--color-bg-canvas), 0 0 0 2.5px var(--color-fill-primary);
 
-  --text-body-mini-regular: 12px;
-  --text-body-mini-regular--line-height: 16px;
-  --text-body-mini-regular--font-weight: 400;
-
-  --text-title-mini-medium: 18px;
-  --text-title-mini-medium--line-height: 24px;
-  --text-title-mini-medium--font-weight: 500;
-  --text-title-mini-medium--letter-spacing: -0.25px;
-  --text-body-small-regular: 13px;
-  --text-body-small-regular--line-height: 18px;
-  --text-body-small-regular--font-weight: 400;
+  /* Palermo type scale: size / line height / weight */
   --text-body-small-medium: 13px;
   --text-body-small-medium--line-height: 18px;
   --text-body-small-medium--font-weight: 500;
+  --text-body-mini-regular: 12px;
+  --text-body-mini-regular--line-height: 16px;
+  --text-body-mini-regular--font-weight: 400;
+  --text-body-mini-medium: 12px;
+  --text-body-mini-medium--line-height: 16px;
+  --text-body-mini-medium--font-weight: 500;
+  --text-body-micro-regular: 10px;
+  --text-body-micro-regular--line-height: 14px;
+  --text-body-micro-regular--font-weight: 400;
+  --text-body-micro-medium: 10px;
+  --text-body-micro-medium--line-height: 14px;
+  --text-body-micro-medium--font-weight: 500;
+}
+
+/* Ruler ticks in currentColor: a short tick every 4px, a taller one every 20px. */
+@utility ticks {
+  background:
+    repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px 20px) left bottom / 100% 7px no-repeat,
+    repeating-linear-gradient(to right, currentColor 0 1px, transparent 1px 4px) left bottom / 100% 4px no-repeat;
+}
+
+/*
+ * Liquid Glass segmented control (SegmentedField). The pill's edges are --a and --b, measured in
+ * segments; registering them makes them animatable, so one animation drives the pill and its lens.
+ * Refraction via SVG displacement filters only renders in Chromium, so the glass is built from
+ * what reads as glass everywhere: a frosted body, a specular top edge and glare, an iridescent
+ * rim, and a lens that magnifies the labels it sits over.
+ */
+@property --a { syntax: '<number>'; inherits: true; initial-value: 0; }
+@property --b { syntax: '<number>'; inherits: true; initial-value: 1; }
+
+.glass-seg {
+  --pad: 2px;
+  --gap: 2px;
+  --cell: calc((100% - 2 * var(--pad) - (var(--n) - 1) * var(--gap)) / var(--n));
+  --left: calc(var(--pad) + var(--a) * (var(--cell) + var(--gap)));
+  --right: calc(var(--pad) + var(--b) * (var(--cell) + var(--gap)) - var(--gap));
+  position: relative;
+  border-radius: 7px;
+  background: rgb(0 0 0 / 0.045);
+  box-shadow: inset 0 1px 1.5px rgb(0 0 0 / 0.07), inset 0 0 0 0.5px rgb(0 0 0 / 0.05);
+}
+.glass-row {
+  display: grid;
+  grid-template-columns: repeat(var(--n), 1fr);
+  gap: var(--gap);
+  padding: var(--pad);
+}
+.glass-pill {
+  position: absolute;
+  top: var(--pad);
+  bottom: var(--pad);
+  left: var(--left);
+  width: calc(var(--right) - var(--left));
+  border-radius: 5px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(255 255 255 / 0.6));
+  backdrop-filter: blur(3px) saturate(1.8);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255), /* specular top edge */
+    inset 0 -1px 1px rgb(255 255 255 / 0.55), /* light bouncing off the bottom */
+    0 0 0 0.5px rgb(0 0 0 / 0.07),
+    0 1px 2px rgb(0 0 0 / 0.08),
+    0 3px 8px -2px rgb(0 0 0 / 0.12);
+}
+.glass-pill::before, .glass-pill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.glass-pill::before { /* glare */
+  background: radial-gradient(120% 100% at 28% 0%, rgb(255 255 255 / 0.85), transparent 55%);
+  opacity: 0.7;
+}
+.glass-pill::after { /* 1px rim, bright at the lit corners with a faint iridescent tint */
+  padding: 1px;
+  background: linear-gradient(135deg, rgb(255 255 255), rgb(255 255 255 / 0) 35%, rgb(255 255 255 / 0) 62%, rgb(196 214 255 / 0.75) 85%, rgb(255 222 240 / 0.8));
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+}
+.glass-lens {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  clip-path: inset(var(--pad) calc(100% - var(--right)) var(--pad) var(--left) round 5px);
+  font-size: var(--text-body-mini-medium);
+  line-height: var(--text-body-mini-medium--line-height);
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+.glass-lens > span {
+  display: grid;
+  place-items: center;
+  height: 24px;
+  transform: scale(1.08);
 }
 
 :root {

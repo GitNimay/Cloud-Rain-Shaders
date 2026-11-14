@@ -31,8 +31,7 @@ const EFFECTS = {
   midnight: { sky: [[4, 8, 40], [30, 46, 112]], cloud: [[10, 14, 44], [62, 78, 146], [206, 216, 255]], ink: [40, 60, 170] },
 };
 const mix = (a, b, t) => a + (b - a) * t;
-function grade(r, g, b, v) { // v: 0 at the top of the frame, 1 at the bottom
-  const fx = EFFECTS[P.effect];
+function grade(r, g, b, v, fx) { // v: 0 at the top of the frame, 1 at the bottom
   if (!fx) return [r, g, b];
   const sky = Math.min(1, Math.max(0, (b - Math.max(r, g)) / 160)); // how blue-saturated, i.e. how much open sky
   // The picture's clouds are mostly bright, so stretch brightness to use the whole cloud ramp.
@@ -70,9 +69,12 @@ const bayer = (x, y) => BAYER[(y & 3) << 2 | (x & 3)];
 const quant = (v, b) => Math.max(0, Math.min(255, Math.round(((v - 128) * P.contrast + 131 + (b - .5) * STEP) / STEP) * STEP));
 console.assert(quant(0, 0) === 0 && quant(255, 1) === 255 && quant(130, .5) % STEP === 0 && quant(40, .5) < quant(200, .5), 'quant broken');
 const canvas = document.getElementById('c'), ctx = canvas.getContext('2d');
-const atlas = document.createElement('canvas'), actx = atlas.getContext('2d');
 const img = new Image();
-let cw, ch, cols, rows, C, S, G, K, drops, N, ready = false;
+const STILL = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FADE_MS = 1100;       // how long a colour effect change takes to roll down the screen
+// px: the picture sampled once per cell. C/S/atlas: colour, ink set and glyph sprites for the
+// current look. THR: when each cell flips during a change. fade: the previous look, while one runs.
+let cw, ch, cols, rows, px, C, S, atlas, G, K, THR, drops, N, fade = null, ready = false;
 // Speed and trail vary +-50% around their parameter so columns don't fall in lockstep.
 const rainOf = () => ({ v: P.speed * (.5 + Math.random()), len: Math.max(1, P.trail * (.5 + Math.random())), on: Math.random() < P.density });
 const newDrop = () => ({ y: -Math.random() * rows * .35, ...rainOf() });
@@ -81,52 +83,91 @@ function setup() {
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.round(canvas.clientWidth * dpr);
   canvas.height = Math.round(canvas.clientHeight * dpr);
-  const glyphs = GLYPHS[P.glyphs]; N = glyphs.length;
+  N = GLYPHS[P.glyphs].length;
+  cw = Math.round(P.cell * dpr); ch = Math.round(P.cell * 1.5 * dpr);
+  cols = Math.ceil(canvas.width / cw); rows = Math.ceil(canvas.height / ch);
+  const n = cols * rows;
+  px = sample(cols, rows, cw / ch);
+  G = Uint8Array.from({ length: n }, () => Math.random() * N); // glyph per cell
+  K = new Uint8Array(n).fill(255);                       // last drawn (fade side, level, glyph), to skip unchanged cells
+  // A change rolls down the screen, broken up by the dither pattern and a little per column so it reads as rain.
+  const jitter = Float32Array.from({ length: cols }, Math.random);
+  THR = Float32Array.from({ length: n }, (_, i) => { const x = i % cols, y = i / cols | 0; return y / rows * .6 + bayer(x, y) * .25 + jitter[x] * .15; });
+  // Keep rain where it was across a re-setup when the grid width is unchanged; otherwise scatter it down the screen.
+  drops = Array.from({ length: cols }, (_, x) => drops?.length === cols ? drops[x] : { ...newDrop(), y: (Math.random() * 1.4 - .2) * rows });
+  fade = null;
+  paint();
+  ready = true;
+}
+
+// The picture cover-fitted to a w x h grid whose cells have the given aspect, as RGBA bytes.
+function sample(w, h, aspect) {
+  const s = document.createElement('canvas'); s.width = w; s.height = h;
+  const sc = s.getContext('2d'), k = Math.max(w / img.width, h / aspect / img.height);
+  const sw = w / k, sh = h / aspect / k;
+  sc.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 0, 0, w, h);
+  return sc.getImageData(0, 0, w, h).data;
+}
+
+// One cell's final colour: graded by the effect, then ordered-dither + posterise for the pixelated look.
+function cellRGB(data, i, x, y, h, fx) {
+  const b = bayer(x, y), c = grade(data[i * 4], data[i * 4 + 1], data[i * 4 + 2], y / h, fx);
+  return [quant(c[0], b), quant(c[1], b), quant(c[2], b)];
+}
+
+// Colours and glyph sprites for the current effect, contrast and character set.
+function paint() {
+  const fx = EFFECTS[P.effect], n = cols * rows;
+  C = new Array(n); S = new Uint8Array(n);               // cell colour, cell ink set
+  for (let i = 0; i < n; i++) {
+    const [r, g, b] = cellRGB(px, i, i % cols, i / cols | 0, rows, fx);
+    C[i] = `rgb(${r},${g},${b})`;
+    S[i] = r * .3 + g * .59 + b * .11 > 150 ? 1 : 0;
+  }
   // Glyph sprites, transparent background. Two inks (white for dark/mid cells, the effect's tint
   // for bright cells), three rain levels each: still (texture), trail, head.
-  const tint = EFFECTS[P.effect]?.ink ?? [20, 50, 215];
+  const glyphs = GLYPHS[P.glyphs], tint = fx?.ink ?? [20, 50, 215];
   const INK = [
     ['rgba(255,255,255,.17)', 'rgba(255,255,255,.62)', '#ffffff'],
     [`rgba(${tint},.18)`, `rgba(${tint},.62)`, `rgb(${tint})`],
   ];
-  cw = Math.round(P.cell * dpr); ch = Math.round(P.cell * 1.5 * dpr);
-  cols = Math.ceil(canvas.width / cw); rows = Math.ceil(canvas.height / ch);
-  const n = cols * rows;
-
-  // One picture sample per cell (cover-fit), then ordered-dither + posterise for the pixelated look.
-  const s = document.createElement('canvas'); s.width = cols; s.height = rows;
-  const sc = s.getContext('2d'), k = Math.max(cols * cw / img.width, rows * ch / img.height);
-  const sw = cols * cw / k, sh = rows * ch / k;
-  sc.drawImage(img, (img.width - sw) / 2, (img.height - sh) / 2, sw, sh, 0, 0, cols, rows);
-  const px = sc.getImageData(0, 0, cols, rows).data;
-  C = new Array(n); S = new Uint8Array(n);               // cell colour, cell ink set
-  for (let i = 0; i < n; i++) {
-    const y = i / cols | 0, b = bayer(i % cols, y), c = grade(px[i * 4], px[i * 4 + 1], px[i * 4 + 2], y / rows);
-    const r = quant(c[0], b), g = quant(c[1], b), bl = quant(c[2], b);
-    C[i] = `rgb(${r},${g},${bl})`;
-    S[i] = r * .3 + g * .59 + bl * .11 > 150 ? 1 : 0;
-  }
-  G = Uint8Array.from({ length: n }, () => Math.random() * N); // glyph per cell
-  K = new Uint8Array(n).fill(255);                       // last drawn (level, glyph), to skip unchanged cells
-  // Keep rain where it was across a re-setup when the grid width is unchanged; otherwise scatter it down the screen.
-  drops = Array.from({ length: cols }, (_, x) => drops?.length === cols ? drops[x] : { ...newDrop(), y: (Math.random() * 1.4 - .2) * rows });
-
+  atlas = document.createElement('canvas');               // a new one, so a running fade keeps the old sprites
   atlas.width = cw * N; atlas.height = ch * 6;
+  const actx = atlas.getContext('2d');
   actx.font = `bold ${ch}px ui-monospace, Consolas, Menlo, monospace`;
   actx.textAlign = 'center'; actx.textBaseline = 'middle';
   for (let set = 0; set < 2; set++) for (let lv = 0; lv < 3; lv++) {
     actx.fillStyle = INK[set][lv];
     for (let d = 0; d < N; d++) actx.fillText(glyphs[d], d * cw + cw / 2, (set * 3 + lv) * ch + ch / 2 + 1);
   }
-  ready = true;
 }
 
-// Apply new parameters: rain-only changes retune the drops in place, anything else rebuilds the grid.
+// A small still of every effect, for the app's preset swatches. Rendered here with the same
+// grade and dither as the animation, so the swatches can never drift from the real look.
+function thumbs(w = 64, h = 40) {
+  const data = sample(w, h, 1), out = {};
+  const t = document.createElement('canvas'); t.width = w; t.height = h;
+  const tc = t.getContext('2d'), im = tc.createImageData(w, h);
+  for (const name in EFFECTS) {
+    for (let i = 0; i < w * h; i++) { im.data.set(cellRGB(data, i, i % w, i / w | 0, h, EFFECTS[name]), i * 4); im.data[i * 4 + 3] = 255; }
+    tc.putImageData(im, 0, 0);
+    out[name] = t.toDataURL();
+  }
+  return out;
+}
+
+// Apply new parameters: rain-only changes retune the drops in place, a new effect fades in,
+// contrast repaints, and a new cell size or character set rebuilds the grid.
 function update(o) {
   const before = { ...P };
   if (!setParams(o) || !ready) return;
-  if (P.cell !== before.cell || P.contrast !== before.contrast || P.glyphs !== before.glyphs || P.effect !== before.effect) setup();
+  if (P.cell !== before.cell || P.glyphs !== before.glyphs) setup();
+  else if (P.effect !== before.effect) {
+    if (!STILL) fade = { C, S, atlas, t0: performance.now() };
+    paint(); if (STILL) K.fill(255);
+  } else if (P.contrast !== before.contrast) { paint(); K.fill(255); }
   if (P.speed !== before.speed || P.trail !== before.trail || P.density !== before.density) for (const d of drops) Object.assign(d, rainOf());
+  if (STILL) frame(0);                                    // no animation loop to pick the change up
 }
 addEventListener('message', e => { if (e.origin === location.origin) update(e.data); });
 
@@ -138,25 +179,31 @@ function frame(dt) {
   }
   for (let n = cols * rows * .003; n > 0; n--) G[Math.random() * G.length | 0] = Math.random() * N;
 
+  // Progress of a running effect change, eased; cells whose THR is below it show the new look.
+  let p = 1;
+  if (fade) { p = (performance.now() - fade.t0) / FADE_MS; if (p >= 1) { fade = null; p = 1; } else p = p * p * (3 - 2 * p); }
+
   for (let x = 0; x < cols; x++) {
     const head = Math.floor(drops[x].y), len = drops[x].len, on = drops[x].on;
     for (let y = 0; y < rows; y++) {
       const i = y * cols + x, k = head - y;
       const lv = !on ? 0 : k === 0 ? 2 : k > 0 && k < len && (1 - k / len) * 2 > bayer(x, y) ? 1 : 0; // solid streak, dithered only at the tail end
       if (lv === 2) G[i] = Math.random() * N;
-      const key = lv * N + G[i];
+      const nw = !fade || THR[i] < p, key = (lv * N + G[i]) << 1 | nw;
       if (K[i] === key) continue;
       K[i] = key;
-      ctx.fillStyle = C[i]; ctx.fillRect(x * cw, y * ch, cw, ch);
-      ctx.drawImage(atlas, G[i] * cw, (S[i] * 3 + lv) * ch, cw, ch, x * cw, y * ch, cw, ch);
+      const L = nw ? { C, S, atlas } : fade;
+      ctx.fillStyle = L.C[i]; ctx.fillRect(x * cw, y * ch, cw, ch);
+      ctx.drawImage(L.atlas, G[i] * cw, (L.S[i] * 3 + lv) * ch, cw, ch, x * cw, y * ch, cw, ch);
     }
   }
 }
 
 img.onload = () => {
   setup();
-  addEventListener('resize', setup);
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { frame(0); return; } // one still frame
+  addEventListener('resize', () => { setup(); if (STILL) frame(0); });
+  if (parent !== window) parent.postMessage({ type: 'thumbs', thumbs: thumbs() }, location.origin);
+  if (STILL) { frame(0); return; }                        // one still frame
   let last = performance.now();
   requestAnimationFrame(function loop(now) {
     frame(Math.min(.05, (now - last) / 1000)); last = now;
