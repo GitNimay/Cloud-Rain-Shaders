@@ -1,6 +1,9 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { SegmentedField, SliderField, SwatchField } from '../components/controls'
+import { ExportPanel } from '../components/export-panel'
+import { SheenPillButton } from '../components/sheen-pill-button'
+import { ThemeToggle } from '../components/theme-toggle'
 import { DEFAULTS, EFFECTS, GLYPH_SETS, SLIDERS, paramsSchema, type Effect, type Params } from '../params'
 
 // The settings live in the URL: validated on the way in, defaults stripped on the way out,
@@ -50,8 +53,8 @@ function Editor() {
 
       <aside className="flex flex-col border-t border-line lg:min-h-0 lg:border-t-0 lg:border-l">
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
-          <h1 className="text-body-small-medium text-text-primary">ASCII Shedders</h1>
-          <span className="text-body-mini-regular text-text-tertiary">cloud-rain</span>
+          <h1 className="text-body-small-medium text-text-primary">ASCII Cloud Rain</h1>
+          <ThemeToggle />
         </header>
 
         <div className="flex flex-col lg:min-h-0 lg:overflow-y-auto">
@@ -83,18 +86,17 @@ function Editor() {
               ))}
             </div>
           </Section>
+
+          <Section title="Export">
+            <ExportPanel params={params} getCanvas={() => frame.current?.contentDocument?.querySelector('canvas') ?? null} />
+          </Section>
         </div>
 
         <footer className="mt-auto flex h-12 shrink-0 items-center justify-between border-t border-line px-4">
           <span className="text-body-micro-regular text-text-tertiary">Double-click a slider to reset it</span>
-          <button
-            type="button"
-            disabled={isDefault}
-            onClick={() => set(DEFAULTS)}
-            className="h-6 rounded-md bg-control-bg px-2 text-body-mini-medium text-text-primary shadow-low outline-none transition-shadow hover:shadow-low-hover focus-visible:shadow-focus disabled:text-text-tertiary disabled:hover:shadow-low"
-          >
+          <SheenPillButton disabled={isDefault} onClick={() => set(DEFAULTS)} height={26}>
             Reset all
-          </button>
+          </SheenPillButton>
         </footer>
       </aside>
     </main>
