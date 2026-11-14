@@ -146,7 +146,7 @@ function MediaTile(props: {
       aria-busy={busy || undefined}
       aria-label={`Record ${props.seconds} second ${props.label} (${props.meta})`}
       title={`${props.seconds}s · ${props.meta}`}
-      className="w-full"
+      className="w-full pointer-coarse:!h-10"
     >
       {props.state === 'recording' ? (
         <>
@@ -181,14 +181,14 @@ function CodeView(props: { file: string; lang: string; text: string; copied: boo
   }
   return (
     <div className="gh-code overflow-hidden rounded-md" data-lang={props.lang}>
-      <div className="flex h-7 items-center justify-between border-b border-[var(--gh-border)] bg-[var(--gh-canvas-subtle)] pr-1 pl-2.5">
+      <div className="flex h-7 items-center justify-between pointer-coarse:h-9 border-b border-[var(--gh-border)] bg-[var(--gh-canvas-subtle)] pr-1 pl-2.5">
         <span className="font-mono text-[10px] text-[var(--gh-fg-muted)]">{props.file}</span>
         <button
           type="button"
           onClick={copy}
           aria-label={props.copied ? 'Copied' : 'Copy code'}
           title={props.copied ? 'Copied' : 'Copy'}
-          className="grid size-5 place-items-center rounded-[4px] text-[var(--gh-fg-muted)] outline-none transition-colors hover:bg-[var(--gh-hover)] hover:text-[var(--gh-fg)] focus-visible:shadow-focus"
+          className="grid size-5 place-items-center rounded-[4px] pointer-coarse:size-8 text-[var(--gh-fg-muted)] outline-none transition-colors hover:bg-[var(--gh-hover)] hover:text-[var(--gh-fg)] focus-visible:shadow-focus"
         >
           <Icon name={props.copied ? 'check' : 'copy'} className={props.copied ? 'size-3 text-text-green' : 'size-3'} />
         </button>
@@ -208,10 +208,10 @@ function CodeView(props: { file: string; lang: string; text: string; copied: boo
 // A downloadable file, shown like a GitHub release asset.
 function FileRow(props: { name: string; kb: number | null; href?: string; done?: boolean; onDownload?: () => void }) {
   const control =
-    'grid size-5 place-items-center rounded-[4px] text-text-secondary outline-none transition-colors hover:bg-fill-tertiary/40 hover:text-text-primary focus-visible:shadow-focus'
+    'grid size-5 place-items-center rounded-[4px] pointer-coarse:size-8 text-text-secondary outline-none transition-colors hover:bg-fill-tertiary/40 hover:text-text-primary focus-visible:shadow-focus'
   const icon = <Icon name={props.done ? 'check' : 'download'} className={props.done ? 'size-3 text-text-green' : 'size-3'} />
   return (
-    <div className="flex h-8 items-center gap-2 rounded-md bg-control-bg pr-1.5 pl-2.5 shadow-low">
+    <div className="flex h-8 items-center gap-2 rounded-md pointer-coarse:h-10 bg-control-bg pr-1.5 pl-2.5 shadow-low">
       <Icon name="file" className="size-3.5 shrink-0 text-text-tertiary" />
       <span className="truncate font-mono text-[10px] text-text-primary">{props.name}</span>
       <span className="ml-auto text-body-micro-regular text-text-tertiary tabular-nums">{props.kb ? `${props.kb} KB` : ''}</span>

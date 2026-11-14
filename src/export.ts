@@ -1,4 +1,4 @@
-import { DEFAULTS, type Params } from './params'
+import { SHADER_DEFAULTS, type Params } from './params'
 
 // Every export is generated from the one renderer module, so they cannot drift apart.
 export const MODULE_URL = '/ascii-shedders/cloud-rain.js'
@@ -9,9 +9,9 @@ const PAGE_URL = '/ascii-shedders/cloud-rain.html'
 export const SITE = import.meta.env.VITE_SITE_URL || window.location.origin
 const isPublic = (origin: string) => !/^https?:\/\/(localhost|127\.|\[::1\])/.test(origin)
 
-// Only the settings that differ from the defaults, to keep exported code short.
+// Only the settings that differ from the shader's defaults, to keep exported code short.
 function changed(p: Params): Array<[string, string | number]> {
-  return (Object.keys(DEFAULTS) as Array<keyof Params>).filter((k) => p[k] !== DEFAULTS[k]).map((k) => [k, p[k]])
+  return (Object.keys(SHADER_DEFAULTS) as Array<keyof Params>).filter((k) => p[k] !== SHADER_DEFAULTS[k]).map((k) => [k, p[k]])
 }
 
 const literal = (v: string | number) => (typeof v === 'string' ? `'${v}'` : String(v))

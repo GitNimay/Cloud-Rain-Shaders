@@ -3,8 +3,13 @@ import { useId, useLayoutEffect, useRef, type CSSProperties } from 'react'
 
 // A design-tool style scrubber (the pattern used by Figma, Framer and SmoothUI's Scrubber):
 // the whole field is the slider, with the label and value inside it, a tick ruler along the
-// bottom and a needle for the thumb. Built on the Radix slider, so pointer, touch and keyboard
-// (arrows, Page Up/Down, Home/End) all work. Double-click returns to the default.
+// bottom and a needle for the thumb. Built on the Radix slider, so mouse and keyboard
+// (arrows, Page Up/Down, Home/End) work as usual. Double-click returns to the default.
+//
+// Touch is handled here instead: the fields span the panel, so a finger scrolling the page
+// lands on one. Vertical drags scroll the page (touch-action: pan-y), a mostly-horizontal drag
+// scrubs relative to where it started, and a tap jumps to the tapped point. Calling
+// preventDefault() makes Radix skip its own handler for that event.
 export function SliderField(props: {
   label: string
   value: number
@@ -16,16 +21,50 @@ export function SliderField(props: {
   onChange: (value: number) => void
 }) {
   const id = useId()
-  const pct = (v: number) => `${((v - props.min) / (props.max - props.min)) * 100}%`
+  const range = props.max - props.min
+  const pct = (v: number) => `${((v - props.min) / range) * 100}%`
+  const snap = (v: number) => Math.min(props.max, Math.max(props.min, props.min + Math.round((v - props.min) / props.step) * props.step))
+  const touch = useRef<{ id: number; x: number; y: number; value: number; width: number; scrubbing: boolean } | null>(null)
+
   return (
     <Slider.Root
-      className="group/s relative flex h-8 cursor-ew-resize touch-none items-center rounded-md bg-control-bg shadow-low transition-shadow select-none hover:shadow-low-hover has-[:focus-visible]:shadow-focus"
+      className="group/s relative flex h-8 cursor-ew-resize touch-pan-y items-center rounded-md bg-control-bg shadow-low transition-shadow select-none hover:shadow-low-hover has-[:focus-visible]:shadow-focus pointer-coarse:h-10"
       value={[props.value]}
       min={props.min}
       max={props.max}
       step={props.step}
       onValueChange={([v]) => props.onChange(v)}
       onDoubleClick={() => props.onChange(props.defaultValue)}
+      onPointerDown={(e) => {
+        if (e.pointerType !== 'touch') return
+        e.preventDefault()
+        const r = e.currentTarget.getBoundingClientRect()
+        touch.current = { id: e.pointerId, x: e.clientX, y: e.clientY, value: props.value, width: r.width, scrubbing: false }
+      }}
+      onPointerMove={(e) => {
+        const t = touch.current
+        if (e.pointerType !== 'touch' || !t || e.pointerId !== t.id) return
+        e.preventDefault()
+        const dx = e.clientX - t.x
+        const dy = e.clientY - t.y
+        if (!t.scrubbing) {
+          if (Math.abs(dy) > 8 && Math.abs(dy) > Math.abs(dx)) return void (touch.current = null) // a scroll
+          if (Math.abs(dx) < 6) return
+          t.scrubbing = true
+        }
+        props.onChange(snap(t.value + (dx / t.width) * range))
+      }}
+      onPointerUp={(e) => {
+        const t = touch.current
+        if (e.pointerType !== 'touch' || !t || e.pointerId !== t.id) return
+        e.preventDefault()
+        touch.current = null
+        if (!t.scrubbing) {
+          const r = e.currentTarget.getBoundingClientRect()
+          props.onChange(snap(props.min + ((e.clientX - r.left) / r.width) * range)) // a tap
+        }
+      }}
+      onPointerCancel={() => (touch.current = null)} // the browser took the gesture for scrolling
     >
       <Slider.Track className="absolute inset-0 overflow-hidden rounded-md">
         <span aria-hidden className="ticks absolute inset-x-0 bottom-0 h-[7px] text-fill-tertiary" />
@@ -47,7 +86,7 @@ export function SliderField(props: {
         aria-labelledby={id}
         aria-valuetext={props.display}
         // Full-height hit area; the visible needle is only the ruler band, so it never cuts through the text.
-        className="relative block h-8 w-px outline-none transition-[width] group-active/s:w-0.5 after:absolute after:inset-x-0 after:bottom-0 after:h-3 after:bg-fill-primary before:absolute before:bottom-[7px] before:left-1/2 before:size-[5px] before:-translate-x-1/2 before:bg-fill-primary"
+        className="relative block h-8 w-px outline-none transition-[width] pointer-coarse:h-10 group-active/s:w-0.5 after:absolute after:inset-x-0 after:bottom-0 after:h-3 after:bg-fill-primary before:absolute before:bottom-[7px] before:left-1/2 before:size-[5px] before:-translate-x-1/2 before:bg-fill-primary"
       />
     </Slider.Root>
   )
@@ -117,7 +156,7 @@ export function SegmentedField<T extends string>(props: {
             <ToggleGroup.Item
               key={o.value}
               value={o.value}
-              className="h-6 rounded-[5px] text-body-mini-medium text-text-secondary outline-none transition-colors hover:text-text-primary focus-visible:shadow-focus"
+              className="h-6 rounded-[5px] pointer-coarse:h-8 text-body-mini-medium text-text-secondary outline-none transition-colors hover:text-text-primary focus-visible:shadow-focus"
             >
               {o.label}
             </ToggleGroup.Item>

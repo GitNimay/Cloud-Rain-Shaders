@@ -39,25 +39,28 @@ function Editor() {
   const isDefault = (Object.keys(DEFAULTS) as Array<keyof Params>).every((k) => params[k] === DEFAULTS[k])
 
   return (
-    // Full screen on the canvas colour: the animation takes all the room the settings rail leaves.
-    <main className="grid min-h-dvh lg:h-dvh lg:grid-cols-[minmax(0,1fr)_16.5rem]">
-      <div className="p-4 lg:min-h-0">
+    // Full screen on the canvas colour. From tablet width up, the animation takes all the room the
+    // settings rail leaves. On phones they stack, and the animation stays pinned at the top while
+    // the settings scroll under it, so every change can be seen as it is made.
+    <main className="grid min-h-dvh grid-cols-[minmax(0,1fr)] md:h-dvh md:grid-cols-[minmax(0,1fr)_16.5rem]">
+      <div className="sticky top-0 z-10 bg-bg-canvas px-3 pt-[max(12px,env(safe-area-inset-top))] pb-3 md:static md:min-h-0 md:p-4">
         <iframe
           ref={frame}
           src="/ascii-shedders/cloud-rain.html"
           title="Cloud rain ASCII animation"
           onLoad={send}
-          className="block aspect-video w-full border-0 lg:aspect-auto lg:h-full"
+          className="block aspect-video w-full border-0 md:aspect-auto md:h-full"
         />
       </div>
 
-      <aside className="flex flex-col border-t border-line lg:min-h-0 lg:border-t-0 lg:border-l">
+      <aside className="flex min-w-0 flex-col border-t border-line md:min-h-0 md:border-t-0 md:border-l">
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
           <h1 className="text-body-small-medium text-text-primary">ASCII Cloud Rain</h1>
           <ThemeToggle />
         </header>
 
-        <div className="flex flex-col lg:min-h-0 lg:overflow-y-auto">
+        {/* relative: keeps absolutely positioned bits (the export status for screen readers) inside the scroller */}
+        <div className="relative flex flex-col md:min-h-0 md:overflow-y-auto">
           <Section title="Color effect">
             <SwatchField
               label="Color effect"
@@ -92,9 +95,10 @@ function Editor() {
           </Section>
         </div>
 
-        <footer className="mt-auto flex h-12 shrink-0 items-center justify-between border-t border-line px-4">
-          <span className="text-body-micro-regular text-text-tertiary">Double-click a slider to reset it</span>
-          <SheenPillButton disabled={isDefault} onClick={() => set(DEFAULTS)} height={26}>
+        <footer className="mt-auto flex min-h-12 shrink-0 items-center justify-between gap-3 border-t border-line px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))]">
+          {/* Double-click is a mouse gesture, so the hint is only shown where there is one. */}
+          <span className="text-body-micro-regular text-text-tertiary pointer-coarse:invisible">Double-click a slider to reset it</span>
+          <SheenPillButton disabled={isDefault} onClick={() => set(DEFAULTS)} height={26} className="pointer-coarse:!h-10">
             Reset all
           </SheenPillButton>
         </footer>
