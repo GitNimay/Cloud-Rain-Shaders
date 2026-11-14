@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/og.jpg" alt="ASCII Cloud Rain: a blue sky and clouds drawn with falling digits" width="100%" />
+  <img src="public/og.jpg" alt="ASCII Cloud Rain: a pixel-dithered cobalt blue sky with white cumulus clouds" width="100%" />
 </p>
 
 <p align="center">
