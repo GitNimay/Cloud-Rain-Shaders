@@ -1,0 +1,59 @@
+@import 'tailwindcss';
+
+/*
+ * Palermo design tokens (https://palermo.tryprofound.com/docs/colors, /docs/typography), light mode only.
+ * Palermo is not published as a package, so the tokens are declared here under the same names
+ * its Tailwind classes use: bg-bg-primary, text-text-secondary, text-body-small-medium, shadow-low.
+ * Colour and type values are from the docs. The shadow recipes are not published; these are
+ * approximations built from the documented shadow colour tokens.
+ */
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-bg-canvas: #ecebe8; /* page background, set by the brief rather than Palermo */
+  --color-bg-primary: #ffffff;
+  --color-bg-tertiary: #f5f5f5;
+
+  --color-fill-primary: #18181a;
+  --color-fill-tertiary: #d4d4d8;
+  --color-fill-quaternary: #e8e8e8;
+  --color-fill-inverse: #ffffff;
+  --color-fill-blue: oklch(62.3% 0.214 259.815);
+
+  --color-control-bg: #ffffff;
+  --color-control-hover: #f5f5f5;
+
+  --color-text-primary: #18181a;
+  --color-text-secondary: #787878;
+  --color-text-tertiary: #969696;
+
+  --color-shadow-stroke: #ebebeb;
+  --color-shadow-2: rgba(0, 0, 0, 0.05);
+
+  --shadow-low: 0 0 0 1px var(--color-shadow-stroke), 0 1px 2px var(--color-shadow-2);
+  --shadow-low-hover: 0 0 0 1px var(--color-fill-tertiary), 0 1px 2px var(--color-shadow-2);
+  --shadow-medium: 0 0 0 1px var(--color-shadow-stroke), 0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-focus: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px var(--color-fill-blue);
+
+  --text-title-mini-medium: 18px;
+  --text-title-mini-medium--line-height: 24px;
+  --text-title-mini-medium--font-weight: 500;
+  --text-title-mini-medium--letter-spacing: -0.25px;
+  --text-body-small-regular: 13px;
+  --text-body-small-regular--line-height: 18px;
+  --text-body-small-regular--font-weight: 400;
+  --text-body-small-medium: 13px;
+  --text-body-small-medium--line-height: 18px;
+  --text-body-small-medium--font-weight: 500;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
