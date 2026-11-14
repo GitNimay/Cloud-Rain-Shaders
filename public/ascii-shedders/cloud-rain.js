@@ -12,7 +12,7 @@
 export const GLYPHS = { digits: '0123456789', binary: '01', hex: '0123456789ABCDEF', symbols: '+-=*/<>#%&' };
 
 export const LIMITS = {       // [min, max, default]; out-of-range values are clamped
-  cell: [4, 16, 6],           // cell width, CSS px (smaller = closer to the picture)
+  cell: [4, 16, 4],           // cell width, CSS px (smaller = closer to the picture)
   speed: [1, 30, 6],          // average fall speed, cells per second
   density: [0, 1, .8],        // share of columns that carry a rain drop
   trail: [2, 40, 18],         // average trail length, cells

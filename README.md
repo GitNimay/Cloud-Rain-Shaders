@@ -50,7 +50,7 @@
 | :-- | :-- | :-- |
 | `effect` | `original` `evening` `autumn` `candy` `midnight` | `original` |
 | `glyphs` | `digits` `binary` `hex` `symbols` | `digits` |
-| `cell` | 4 – 16 px | 6 (4 on phones) |
+| `cell` | 4 – 16 px | 4 |
 | `speed` | 1 – 30 cells/s | 6 |
 | `density` | 0 – 1 | 0.8 |
 | `trail` | 2 – 40 cells | 18 |
