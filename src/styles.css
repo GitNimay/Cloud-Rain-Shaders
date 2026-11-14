@@ -33,7 +33,12 @@
   --shadow-low: 0 0 0 1px var(--color-shadow-stroke), 0 1px 2px var(--color-shadow-2);
   --shadow-low-hover: 0 0 0 1px var(--color-fill-tertiary), 0 1px 2px var(--color-shadow-2);
   --shadow-medium: 0 0 0 1px var(--color-shadow-stroke), 0 2px 6px rgba(0, 0, 0, 0.08);
-  --shadow-focus: 0 0 0 2px var(--color-bg-primary), 0 0 0 4px var(--color-fill-blue);
+  --shadow-focus: 0 0 0 2px var(--color-bg-canvas), 0 0 0 4px var(--color-fill-blue);
+  --shadow-selected: 0 0 0 2px var(--color-bg-canvas), 0 0 0 4px var(--color-fill-primary);
+
+  --text-body-mini-regular: 12px;
+  --text-body-mini-regular--line-height: 16px;
+  --text-body-mini-regular--font-weight: 400;
 
   --text-title-mini-medium: 18px;
   --text-title-mini-medium--line-height: 24px;

@@ -17,14 +17,27 @@ export const GLYPH_SETS = [
   { value: 'symbols', label: 'Symbols' },
 ] as const
 
+// Colour effects are fixed presets defined by the shader (EFFECTS in cloud-rain.html); the app
+// only picks one. `swatch` is a preview of the look: sky top, sky horizon, cloud highlight.
+export const EFFECTS = [
+  { value: 'original', label: 'Original', swatch: ['#0c24f1', '#3353e8', '#ffffff'] },
+  { value: 'evening', label: 'Evening', swatch: ['#2c1a68', '#ff7846', '#ffd498'] },
+  { value: 'autumn', label: 'Autumn', swatch: ['#14465a', '#d67c36', '#ffeecc'] },
+  { value: 'candy', label: 'Candy', swatch: ['#ff74be', '#74bcff', '#ffffff'] },
+  { value: 'midnight', label: 'Midnight', swatch: ['#040828', '#1e2e70', '#ced8ff'] },
+] as const
+
 const glyphValues = GLYPH_SETS.map((g) => g.value) as [GlyphSet, ...GlyphSet[]]
+const effectValues = EFFECTS.map((e) => e.value) as [Effect, ...Effect[]]
 export type GlyphSet = (typeof GLYPH_SETS)[number]['value']
+export type Effect = (typeof EFFECTS)[number]['value']
 export type SliderKey = (typeof SLIDERS)[number]['key']
-export type Params = Record<SliderKey, number> & { glyphs: GlyphSet }
+export type Params = Record<SliderKey, number> & { glyphs: GlyphSet; effect: Effect }
 
 export const DEFAULTS: Params = {
   ...(Object.fromEntries(SLIDERS.map((s) => [s.key, s.fallback])) as Record<SliderKey, number>),
   glyphs: 'digits',
+  effect: 'original',
 }
 
 // A hand-edited or stale URL falls back to the default for that field instead of erroring.
@@ -40,4 +53,5 @@ export const paramsSchema = z.object({
   trail: slider('trail'),
   contrast: slider('contrast'),
   glyphs: z.enum(glyphValues).default('digits').catch('digits'),
+  effect: z.enum(effectValues).default('original').catch('original'),
 })
