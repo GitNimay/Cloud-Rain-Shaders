@@ -8,6 +8,10 @@
 //   shader.destroy()               // stop and release everything
 //
 // The canvas is drawn at whatever size CSS gives it and follows it when it changes.
+//
+// To render frames yourself (video export, tests), give it a fixed pixel size and drive the clock:
+//   const shader = mount(canvas, { width: 1920, height: 1080, pixelRatio: 2, autoplay: false })
+//   await shader.ready; shader.render(1 / 60)   // advance by a 60th of a second and draw
 
 export const GLYPHS = { digits: '0123456789', binary: '01', hex: '0123456789ABCDEF', symbols: '+-=*/<>#%&' };
 
@@ -73,14 +77,20 @@ function setParams(P, o) {
 export function mount(canvas, options = {}) {
   const ctx = canvas.getContext('2d');
   const img = new Image();
-  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // width + height: draw at exactly this many pixels instead of following the CSS size.
+  // pixelRatio: device pixels per CSS px for the cell size (default: the screen's).
+  // autoplay: false: no animation loop; the caller advances time with render(dt).
+  const fixed = options.width > 0 && options.height > 0;
+  const manual = options.autoplay === false;
+  const ratio = () => options.pixelRatio > 0 ? +options.pixelRatio : window.devicePixelRatio || 1;
+  const still = !manual && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const P = { glyphs: 'digits', effect: 'original' };
   for (const k in LIMITS) P[k] = LIMITS[k][2];
   setParams(P, options);
 
   // px: the picture sampled once per cell. C/S/atlas: colour, ink set and glyph sprites for the
   // current look. THR: when each cell flips during a change. fade: the previous look, while one runs.
-  let cw, ch, cols, rows, px, C, S, atlas, G, K, THR, drops, N, fade = null, live = false, raf = 0, dead = false;
+  let cw, ch, cols, rows, px, C, S, atlas, G, K, THR, drops, N, fade = null, live = false, raf = 0, dead = false, clock = 0;
 
   const quant = (v, b) => Math.max(0, Math.min(255, Math.round(((v - 128) * P.contrast + 131 + (b - .5) * STEP) / STEP) * STEP));
   // Speed and trail vary +-50% around their setting so columns don't fall in lockstep.
@@ -88,11 +98,11 @@ export function mount(canvas, options = {}) {
   const newDrop = () => ({ y: -Math.random() * rows * .35, ...rainOf() });
 
   function setup() {
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr));
-    canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
+    const dpr = ratio();
+    canvas.width = fixed ? Math.round(options.width) : Math.max(1, Math.round(canvas.clientWidth * dpr));
+    canvas.height = fixed ? Math.round(options.height) : Math.max(1, Math.round(canvas.clientHeight * dpr));
     N = GLYPHS[P.glyphs].length;
-    cw = Math.round(P.cell * dpr); ch = Math.round(P.cell * 1.5 * dpr);
+    cw = Math.max(1, Math.round(P.cell * dpr)); ch = Math.max(1, Math.round(P.cell * 1.5 * dpr));
     cols = Math.ceil(canvas.width / cw); rows = Math.ceil(canvas.height / ch);
     const n = cols * rows;
     px = sample(cols, rows, cw / ch);
@@ -151,6 +161,7 @@ export function mount(canvas, options = {}) {
   }
 
   function frame(dt) {
+    clock += dt * 1000;                                     // the shader's own time, so off-screen renders are frame-exact
     for (let x = 0; x < cols; x++) {
       const d = drops[x];
       d.y += d.v * dt;
@@ -160,7 +171,7 @@ export function mount(canvas, options = {}) {
 
     // Progress of a running effect change, eased; cells whose THR is below it show the new look.
     let p = 1;
-    if (fade) { p = (performance.now() - fade.t0) / FADE_MS; if (p >= 1) { fade = null; p = 1; } else p = p * p * (3 - 2 * p); }
+    if (fade) { p = (clock - fade.t0) / FADE_MS; if (p >= 1) { fade = null; p = 1; } else p = p * p * (3 - 2 * p); }
 
     for (let x = 0; x < cols; x++) {
       const head = Math.floor(drops[x].y), len = drops[x].len, on = drops[x].on;
@@ -180,7 +191,7 @@ export function mount(canvas, options = {}) {
 
   // Follow the canvas's CSS size. The observer also fires once on observe, which is harmless.
   const sized = new ResizeObserver(() => {
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = ratio();
     if (!live || (canvas.width === Math.round(canvas.clientWidth * dpr) && canvas.height === Math.round(canvas.clientHeight * dpr))) return;
     setup(); if (still) frame(0);
   });
@@ -189,8 +200,8 @@ export function mount(canvas, options = {}) {
     img.onload = () => {
       if (dead) return;
       setup();
-      sized.observe(canvas);
-      if (still) frame(0);                                  // reduced motion: one still frame, redrawn on change
+      if (!fixed) sized.observe(canvas);
+      if (still || manual) frame(0);                        // reduced motion: one still frame, redrawn on change
       else {
         let last = performance.now();
         raf = requestAnimationFrame(function loop(now) {
@@ -210,12 +221,15 @@ export function mount(canvas, options = {}) {
     ready,                                                  // resolves once the first frame is drawn
     // Apply new settings: rain-only changes retune the drops in place, a new effect fades in,
     // contrast repaints, and a new cell size or character set rebuilds the grid.
+    get params() { return { ...P }; },                      // the settings in effect, after validation
+    // Advance the animation by dt seconds and draw. For autoplay: false; see the top of the file.
+    render(dt = 0) { if (live) frame(dt); },
     update(o) {
       const before = { ...P };
       if (!setParams(P, o) || !live) return;
       if (P.cell !== before.cell || P.glyphs !== before.glyphs) setup();
       else if (P.effect !== before.effect) {
-        if (!still) fade = { C, S, atlas, t0: performance.now() };
+        if (!still) fade = { C, S, atlas, t0: clock };
         paint(); if (still) K.fill(255);
       } else if (P.contrast !== before.contrast) { paint(); K.fill(255); }
       if (P.speed !== before.speed || P.trail !== before.trail || P.density !== before.density) for (const d of drops) Object.assign(d, rainOf());

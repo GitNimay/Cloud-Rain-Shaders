@@ -41,9 +41,6 @@ export const DEFAULTS: Params = {
   effect: 'original',
 }
 
-// The shader's own defaults (LIMITS in cloud-rain.js); exported code leaves these out.
-export const SHADER_DEFAULTS: Params = DEFAULTS
-
 // A hand-edited or stale URL falls back to the default for that field instead of erroring.
 const slider = (key: SliderKey) => {
   const s = SLIDERS.find((x) => x.key === key)!
