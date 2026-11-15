@@ -204,7 +204,7 @@ function CodeView(props: { file: string; lang: string; text: string; copied: boo
   return (
     <div className="gh-code overflow-hidden rounded-md" data-lang={props.lang}>
       <div className="flex h-7 items-center justify-between pointer-coarse:h-9 border-b border-[var(--gh-border)] bg-[var(--gh-canvas-subtle)] pr-1 pl-2.5">
-        <span className="font-mono text-[10px] text-[var(--gh-fg-muted)]">{props.file}</span>
+        <span className="dia-reveal font-mono text-[10px] text-[var(--gh-fg-muted)]">{props.file}</span>
         <button
           type="button"
           onClick={copy}
@@ -235,8 +235,8 @@ function FileRow(props: { name: string; kb: number | null; href?: string; done?:
   return (
     <div className="flex h-8 items-center gap-2 rounded-md pointer-coarse:h-10 bg-control-bg pr-1.5 pl-2.5 shadow-low">
       <Icon name="file" className="size-3.5 shrink-0 text-text-tertiary" />
-      <span className="truncate font-mono text-[10px] text-text-primary">{props.name}</span>
-      <span className="ml-auto text-body-micro-regular text-text-tertiary tabular-nums">{props.kb ? `${props.kb} KB` : ''}</span>
+      <span className="dia-reveal truncate font-mono text-[10px] text-text-primary">{props.name}</span>
+      <span className="dia-reveal ml-auto text-body-micro-regular text-text-tertiary tabular-nums">{props.kb ? `${props.kb} KB` : ''}</span>
       {props.href ? (
         <a href={props.href} download={props.name} aria-label={`Download ${props.name}`} className={control}>
           {icon}

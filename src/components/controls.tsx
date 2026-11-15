@@ -75,10 +75,10 @@ export function SliderField(props: {
         </Slider.Range>
       </Slider.Track>
 
-      <span id={id} className="pointer-events-none absolute top-1 left-2.5 text-body-mini-regular text-text-secondary">
+      <span id={id} className="pointer-events-none absolute top-1 left-2.5 dia-reveal text-body-mini-regular text-text-secondary">
         {props.label}
       </span>
-      <output className="pointer-events-none absolute top-1 right-2.5 text-body-mini-medium text-text-primary tabular-nums">
+      <output className="pointer-events-none absolute top-1 right-2.5 dia-reveal text-body-mini-medium text-text-primary tabular-nums">
         {props.display}
       </output>
 
@@ -136,7 +136,7 @@ export function SegmentedField<T extends string>(props: {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span id={id} className="text-body-mini-regular text-text-secondary">
+      <span id={id} className="dia-reveal text-body-mini-regular text-text-secondary">
         {props.label}
       </span>
       <div
@@ -156,7 +156,7 @@ export function SegmentedField<T extends string>(props: {
             <ToggleGroup.Item
               key={o.value}
               value={o.value}
-              className="h-6 rounded-[5px] pointer-coarse:h-8 text-body-mini-medium text-text-secondary outline-none transition-colors hover:text-text-primary focus-visible:shadow-focus"
+              className="h-6 rounded-[5px] pointer-coarse:h-8 dia-reveal text-body-mini-medium text-text-secondary outline-none transition-colors hover:text-text-primary focus-visible:shadow-focus"
             >
               {o.label}
             </ToggleGroup.Item>
@@ -166,7 +166,7 @@ export function SegmentedField<T extends string>(props: {
         {/* The same labels again, darker and magnified, visible only through the pill: the lens. */}
         <span aria-hidden className="glass-row glass-lens">
           {props.options.map((o) => (
-            <span key={o.value}>{o.label}</span>
+            <span key={o.value} className="dia-reveal">{o.label}</span>
           ))}
         </span>
       </div>
@@ -195,7 +195,7 @@ export function SwatchField<T extends string>(props: {
         <ToggleGroup.Item
           key={o.value}
           value={o.value}
-          className="group flex flex-col items-center gap-1 text-body-micro-medium text-text-tertiary outline-none hover:text-text-secondary data-[state=on]:text-text-primary"
+          className="group dia-reveal flex flex-col items-center gap-1 text-body-micro-medium text-text-tertiary outline-none hover:text-text-secondary data-[state=on]:text-text-primary"
         >
           <span
             aria-hidden

@@ -21,7 +21,7 @@ export const SheenPillButton = forwardRef<HTMLButtonElement, Props>(
     >
       {/* sheen: a soft diagonal light band across the upper half, brightening on hover */}
       <span aria-hidden className="sheen-pill-band pointer-events-none absolute inset-0 rounded-full" />
-      <span className="relative flex h-full w-full items-center justify-center gap-1.5 px-3 text-body-mini-medium whitespace-nowrap text-text-primary">
+      <span className="relative flex h-full w-full items-center justify-center gap-1.5 px-3 dia-reveal text-body-mini-medium whitespace-nowrap text-text-primary">
         {children}
       </span>
     </button>

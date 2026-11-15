@@ -55,7 +55,7 @@ function Editor() {
 
       <aside className="flex min-w-0 flex-col border-t border-line md:min-h-0 md:border-t-0 md:border-l">
         <header className="flex h-12 shrink-0 items-center justify-between border-b border-line px-4">
-          <h1 className="text-body-small-medium text-text-primary">ASCII Cloud Rain</h1>
+          <h1 className="dia-reveal text-body-small-medium text-text-primary">ASCII Cloud Rain</h1>
           <div className="flex items-center gap-1">
             <ThemeToggle />
             <a
@@ -111,7 +111,7 @@ function Editor() {
 
         <footer className="mt-auto flex min-h-12 shrink-0 items-center justify-between gap-3 border-t border-line px-4 pt-2 pb-[max(8px,env(safe-area-inset-bottom))]">
           {/* Double-click is a mouse gesture, so the hint is only shown where there is one. */}
-          <span className="text-body-micro-regular text-text-tertiary pointer-coarse:invisible">Double-click a slider to reset it</span>
+          <span className="dia-reveal text-body-micro-regular text-text-tertiary pointer-coarse:invisible">Double-click a slider to reset it</span>
           <SheenPillButton disabled={isDefault} onClick={() => set(DEFAULTS)} height={26} className="pointer-coarse:!h-10">
             Reset all
           </SheenPillButton>
@@ -124,7 +124,7 @@ function Editor() {
 function Section(props: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col gap-3 border-b border-line px-4 pt-3 pb-4">
-      <h2 className="text-body-mini-medium text-text-primary">{props.title}</h2>
+      <h2 className="dia-reveal text-body-mini-medium text-text-primary">{props.title}</h2>
       {props.children}
     </section>
   )
