@@ -321,3 +321,36 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
+
+/*
+ * Dia text reveal, after Magic UI's DiaTextReveal (https://magicui.design/docs/components/dia-text-reveal),
+ * done in CSS instead of motion/react. A colour band sweeps across the text once when it first
+ * renders: text behind the band is the element's own colour, text ahead of it is hidden.
+ * --dia-pos is registered so it interpolates. At rest it sits before the text, which makes the
+ * gradient fully transparent, and the fill is only transparent while the animation runs, so
+ * once it ends the text is untouched (hover colours, selection and forced colours all as before).
+ * Put it on elements that hold text directly: descendants inherit the transparent fill.
+ */
+@property --dia-pos { syntax: '<percentage>'; inherits: false; initial-value: -17%; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .dia-reveal {
+    background-image: linear-gradient(
+      90deg,
+      currentColor calc(var(--dia-pos) - 17%),
+      #c679c4 calc(var(--dia-pos) - 17%),
+      #fa3d1d calc(var(--dia-pos) - 8.5%),
+      #ffb005 var(--dia-pos),
+      #e1e1fe calc(var(--dia-pos) + 8.5%),
+      #0358f7 calc(var(--dia-pos) + 17%),
+      transparent calc(var(--dia-pos) + 17%)
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: dia-reveal 1.5s cubic-bezier(0.65, 0, 0.35, 1) backwards; /* the original's cubic in-out */
+  }
+}
+@keyframes dia-reveal {
+  from { --dia-pos: -17%; -webkit-text-fill-color: transparent; }
+  to { --dia-pos: 117%; -webkit-text-fill-color: transparent; }
+}
